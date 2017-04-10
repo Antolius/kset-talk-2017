@@ -1,0 +1,249 @@
+<!doctype html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+		<title>Predavanje</title>
+
+		<link rel="stylesheet" href="css/reveal.css">
+		<link rel="stylesheet" href="css/custom.css">
+		<link rel="stylesheet" href="css/theme/white.css">
+
+		<!-- Theme used for syntax highlighting of code -->
+		<link rel="stylesheet" href="lib/css/arduino-light.css">
+
+	</head>
+	<body>
+		<div class="reveal">
+			<div class="slides">
+				<section data-background-image="img/all-the-things.png">
+					<h1>Automate all the things</h1>
+					<p>
+						<small>Predaje: Josip Antoliš</small>
+					</p>
+				</section>
+				<section>
+					<h3>Infobip</h3>
+					<ul>
+						<li class="fragment">nekoliko stotina milijuna SMS poruka dnevno</li>
+						<li class="fragment">više od 400 servisa deployanih u produkciju</li>
+						<li class="fragment">preko 40 development i networking timova</li>
+					</ul>
+				</section>
+				<section>
+					<h3>Mikroservisna arhitektura</h3>
+					<div style="display: block">
+						<div class="column fragment" data-fragment-index="1">
+							<h4>Klijenti</h4>
+							<p>programi</p>
+							<p>integracije</p>
+						</div>	
+						<div class="column fragment" data-fragment-index="3">
+							<h4>http REST API</h4>
+							<p>sigurnost</p>
+							<p>monitoriranje</p>
+							<p>mapiranje</p>
+						</div>	
+						<div class="column fragment" data-fragment-index="2">
+							<h4>Mikroservisi</h4>
+							<p><i>here be dragons</i></p>
+						</div>
+					</div>
+				</section>
+				<section>
+					<h3>Zadatak</h3>
+					<p>Mikroservis X je razvio novu funkcionalnost koju treba izložiti klijentima na korištenje.</p>
+				</section>
+				<section>
+					<section>
+						<h3>Implementacija</h3>
+					</section>
+					<section>
+						<h4>API Management servis</h4>
+						<ul>
+							<li class="fragment">sigurnost i monitoriranje na jednom mjestu</li>
+							<li class="fragment">deklarativna definicija REST endpointa</li>
+							<li class="fragment">mapiranje API modela na <i>backend</i></li>
+						</ul>
+					</section>
+					<section>
+						<h4>Primjer</h4>
+						<pre class="fragment">
+							<code class="hljs http" data-trim>
+							DELETE /sms/1/bulks/42 HTTP/1.1
+							Host: api.infobip.com
+							Authorization: Basic dXNlcm5hbWU6cGFzc3dvcmQ=
+							</code>
+						</pre>
+						<p class="fragment">API</p>
+						<pre class="fragment">
+							<code class="hljs java" data-trim>
+							package org.infobip.bulk.service;
+							public interface BulkManager {
+								void cancel(long accountId, long bulkId);
+							}
+							</code>
+						</pre>
+					</section>
+					<section>
+						<h4>Deklarativna definicija</h4>
+						<pre class="fragment">
+							<code class="hljs json" data-trim>
+							{
+								"method": "DELETE",
+								"path": "/sms/1/bulks/{bulkId}",
+								"backendType": "SERVICE",
+								"serviceMapping": {
+									"service": "org.infobip.bulk.service.BulkManager",
+									"method": "cancel",
+									"request": { "params": [
+											"identity.accountId",
+											"requestParameters.bulkId" 
+									] }
+								}
+							}
+							</code>
+						</pre>
+					</section>
+					<section>
+						<h4>Testiranje</h4>
+						<pre class="fragment"><code class="hljs groovy" data-trim>
+							class DeleteTest {
+								@Mock
+								BulkManager manager
+
+								@Test
+								void shouldHandleBulkException() {
+									def exc = new BulkException('Bulk not found!')
+									willThrow(exc).given(manager).cancel(any(), any())
+
+									def res = sendRequest(DELETE, '/sms/1/bulks/42')
+
+									then(res.statusLine.statusCode).isEqualTo(404)
+								}
+							}</code></pre>
+					</section>
+				</section>
+				<section>
+					<section>
+						<h3>Od koda do produkcije</h3>
+					</section>
+					<section>
+						<h4>CI</h4>
+						<ul>
+							<li class="fragment">verzioniranje koda</li>
+							<li class="fragment">automatizirani <i>build</i> i testiranje</li>
+							<li class="fragment"><i>deploy</i> na testnu okolinu</li>
+							<li class="fragment"><i>deploy</i> u produkciju</li>
+						</ul>
+					</section>
+					<section>
+						<h4>Koraci</h4>
+						<div style="display: block">
+							<div class="fragment column">
+								<p><img class="icon" src="img/git-icon.png"/></p>
+								<p><code>git</code></p>
+								<pre style="width: 250px"><code class="hljs java" data-trim>
+									class MyService {
+									  int doStuf() {
+									  	//...
+									  }
+									}
+								</code></pre>
+							</div>	
+							<div class="fragment column">
+								<p><img class="icon" src="img/jenkins-icon.png"/></p>
+								<p>Jenkins</p>
+								<pre style="width: 250px"><code class="hljs yaml" data-trim>
+									1. compile
+									2. test
+									3. upload / alert
+								</code></pre>
+							</div>	
+							<div class="fragment column">
+								<p><img class="icon" src="img/artifactory-icon.png"/></p>
+								<p>Artifactory</p>
+								<p><img class="borderless" src="img/jar.png"/></p>
+							</div>
+						</div>
+					</section>
+					<section>
+						<h4>Okoline</h4>
+						<ul>
+							<li class="fragment">integracijska</li>
+							<li class="fragment">produkcijska</li>
+						</ul>
+					</section>
+					<section>
+						<h4>Deployment Manager</h4>
+						<ul>
+							<li class="fragment">skripte na serverima</li>
+							<li class="fragment">baza podataka sa konfiguracijama</li>
+							<li class="fragment">web aplikacija za pokretanje <i>deploymenta</i></li>
+							<li class="fragment">skripte za pokretanje <i>deploymenta</i></li>
+							<li class="fragment">IDE <i>plugin</i> za pokretanje <i>deploymenta</i></li>
+						</ul>
+					</section>
+				</section>
+				<section>
+					<section>
+						<h3>Od <i>featurea</i> do korisnika</h3>
+					</section>
+					<section>
+						<h4>API client library</h4>
+						<ul>
+							<li class="fragment">Java, PHP, Python</li>
+							<li class="fragment">modeli za request / response, http klijent</li>
+							<li class="fragment">kod dostupan na GitHubu</li>
+							<li class="fragment">objavnjeni na javnim repozitorijima</li>
+						</ul>
+					</section>
+					<section>
+						<h4>Generator koda</h4>
+						<ul>
+							<li class="fragment">kreče od deklarativnih definicija REST endpointa</li>
+							<li class="fragment">sadrži template za modele i http klijente u svakom od jezika</li>
+							<li class="fragment">imena i tipove propertya, URL-ove popuni iz definicija endpoitna</li>
+						</ul>
+					</section>
+					<section>
+						<h4>Distribucija</h4>
+						<ul>
+							<li class="fragment">ručni <code>git push</code></li>
+							<li class="fragment">automatizirani deploy na repozitorije</li>
+						</ul>
+					</section>
+				</section>
+				<section>
+					<h4>Zaključak</h4>
+					<p>Automacija je riješenje za repetativne zadatke i korake.</p>
+					<p>Development postaje izrada frameworka i alata.</p>
+				</section>
+				<section>
+					<h4><a href="https://www.infobip.com/en/dev-days">Inobip Dev Days</a>: 13. 5. 2017.</h4>
+					<h4>studentska praksa: ovog ljeta</h4>
+					<p>kontakt: <a href= "mailto:katarina.lovrencic@infobip.com">katarina.lovrencic@infobip.com</a></p>
+				</section>
+			</div>
+		</div>
+
+		<script src="lib/js/head.min.js"></script>
+		<script src="js/reveal.js"></script>
+
+		<script>
+			// More info https://github.com/hakimel/reveal.js#configuration
+			Reveal.initialize({
+				history: true,
+
+				// More info https://github.com/hakimel/reveal.js#dependencies
+				dependencies: [
+					{ src: 'plugin/markdown/marked.js' },
+					{ src: 'plugin/markdown/markdown.js' },
+					{ src: 'plugin/notes/notes.js', async: true },
+					{ src: 'plugin/highlight/highlight.js', async: true, callback: function() { hljs.initHighlightingOnLoad(); } }
+				]
+			});
+		</script>
+	</body>
+</html>
