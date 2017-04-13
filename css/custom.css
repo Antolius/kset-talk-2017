@@ -8,7 +8,8 @@
     background:none;
     border:none;
     box-shadow:none;
-    height: 100px;
+    max-height: 100px;
+    max-width: 100px;
 }
 
 .reveal section div.column {
